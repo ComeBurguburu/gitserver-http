@@ -1,23 +1,25 @@
-FROM nginx:alpine
+FROM ubuntu:20.04
 
-RUN set -x && \
-  apk --update upgrade                                  &&  \
-  apk add git bash fcgiwrap spawn-fcgi wget             &&  \
+RUN apt-get update -qq \
+  && apt-get install -yq --no-install-recommends \
+     git bash fcgiwrap spawn-fcgi nginx
 
-  adduser git -h /var/lib/git -D                        &&  \
-  adduser nginx git                                     &&  \
-
-  git config --system http.receivepack true             &&  \
+RUN git config --system http.receivepack true             &&  \
   git config --system http.uploadpack true              &&  \
   git config --system user.email "gitserver@git.com"    &&  \
-  git config --system user.name "Git Server"            &&  \
+  git config --system user.name "Git Server"
 
-  ln -sf /dev/stdout /var/log/nginx/access.log          &&  \
-  ln -sf /dev/stderr /var/log/nginx/error.log
+ADD default_project /home/default_project/workspace
 
+RUN rm -f /etc/nginx/sites-enabled/default
+COPY etc /etc
+COPY entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod +x /usr/local/bin/entrypoint
 
-ADD ./etc /etc
-ADD ./entrypoint.sh /usr/local/bin/entrypoint
+RUN useradd -m --uid 1000 hdf
+RUN chown -R hdf:hdf  /usr/local/bin/entrypoint /home/default_project/workspace /usr/bin/spawn-fcgi /usr/sbin/nginx /usr/sbin/fcgiwrap /etc/nginx /var/lib/nginx /var/log/nginx
+RUN mkdir /home/git && chown -R hdf:hdf /home/git 
 
-ENTRYPOINT [ "entrypoint" ]
-CMD [ "-start" ]
+USER hdf
+RUN nginx -t
+CMD [ "bash","/usr/local/bin/entrypoint","-start"]
