@@ -10,21 +10,22 @@
 #   -start    starts the git server (nginx + fcgi)
 #
 #   -init     turns directories under `/var/lib/initial`
-#             into bare repositories at `/var/lib/git`
+#             into bare repositories at `/repo`
 # 
 
 set -o errexit
 
-readonly GIT_PROJECT_ROOT="/var/lib/git"
-readonly GIT_INITIAL_ROOT="/var/lib/initial"
+readonly GIT_PROJECT_ROOT="/home/git"
+readonly GIT_INITIAL_ROOT="/home/default_project"
 readonly GIT_HTTP_EXPORT_ALL="true"
 readonly GIT_USER="git"
 readonly GIT_GROUP="git"
 
-readonly FCGIPROGRAM="/usr/bin/fcgiwrap"
+readonly FCGIPROGRAM="/usr/sbin/fcgiwrap"
 readonly USERID="nginx"
 readonly SOCKUSERID="$USERID"
-readonly FCGISOCKET="/var/run/fcgiwrap.socket"
+readonly FCGISOCKET="/tmp/fcgiwrap.socket"
+
 
 main() {
   mkdir -p $GIT_PROJECT_ROOT
@@ -37,11 +38,6 @@ main() {
 }
 
 initialize_services() {
-  # Check permissions on $GIT_PROJECT_ROOT
-  if [[ ! $(stat -c %A ${GIT_PROJECT_ROOT}) -eq "drwxr-xr-x" ]]; then
-    chown -R giti:git $GIT_PROJECT_ROOT
-    chmod -R 775 $GIT_PROJECT_ROOT
-  fi
 
   /usr/bin/spawn-fcgi \
     -s $FCGISOCKET \
@@ -63,7 +59,13 @@ initialize_initial_repositories() {
 }
 
 init_and_commit() {
+
   local dir=$1
+
+  if [[ -d $GIT_PROJECT_ROOT/${dir}.git ]]; then
+    return 0
+  fi
+
   local tmp_dir=$(mktemp -d)
 
   cp -r $dir/* $tmp_dir
@@ -76,9 +78,12 @@ init_and_commit() {
 
   git init &>/dev/null
   git add --all . &>/dev/null
-  git commit -m "first commit" &>/dev/null
+  git config --global user.name "some"
+  git config --global user.email some@gmail.com
+  git add . && git commit -m "first commit"  -a &>/dev/null
   git clone --bare $tmp_dir $GIT_PROJECT_ROOT/${dir}.git &>/dev/null
 
+  rm -rf tmp_dir
   popd >/dev/null
 }
 
