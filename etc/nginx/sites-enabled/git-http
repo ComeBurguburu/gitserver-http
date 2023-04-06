@@ -1,7 +1,12 @@
 server {
 	server_name       _;
-	listen 80         default_server;
-	listen [::]:80    default_server;
+	listen 9000         default_server;
+	listen [::]:9000    default_server;
+
+  # unauthorized cross namespace query
+  if ($host ~* "svc\.cluster\.local") {
+    return 403 'unauthorized';
+  }
 
   location /ping {
       add_header Content-Type text/plain;
@@ -9,21 +14,28 @@ server {
   }
 
   location ~ ^.*\.git/objects/([0-9a-f]+/[0-9a-f]+|pack/pack-[0-9a-f]+.(pack|idx))$ {
-    root            /var/lib/git;
+    add_header Access-Control-Allow-Origin *;
+    root            /home/git;
   }
 
   location ~ ^.*\.git/(HEAD|info/refs|objects/info/.*|git-(upload|receive)-pack)$ {
+    add_header Access-Control-Allow-Origin *;
     include         fastcgi_params;
-    fastcgi_param   SCRIPT_FILENAME /usr/libexec/git-core/git-http-backend;
+    fastcgi_param   SCRIPT_FILENAME /usr/lib/git-core/git-http-backend;
     fastcgi_param   GIT_HTTP_EXPORT_ALL "";
-    fastcgi_param   GIT_PROJECT_ROOT /var/lib/git;
+    fastcgi_param   GIT_PROJECT_ROOT /home/git/;
     fastcgi_param   PATH_INFO $uri;
     fastcgi_param   REMOTE_USER $remote_user;
-    fastcgi_pass    unix:/var/run/fcgiwrap.socket;
+    fastcgi_pass    unix:/tmp/fcgiwrap.socket;
   }
 
-	location / {
-		try_files       $uri $uri/ =404;
-	}
+  location / {
+    try_files       $uri $uri/ =404;
+  }
+
+  location ~ /(workspace\.git)?$ {
+    add_header Content-Type text/plain;
+    return 200 'git server';
+  }
 }
 
