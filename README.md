@@ -1,3 +1,5 @@
+source: https://github.com/cirocosta/gitserver-http
+
 # gitserver-http [![Build Status](https://travis-ci.org/cirocosta/gitserver-http.svg?branch=master)](https://travis-ci.org/cirocosta/gitserver-http)
 
 > A git server with Nginx as the HTTP frontend and fast cgi wrapper for running the git http backend
@@ -10,10 +12,13 @@ To run a git server without any repositories configured in advance but allowing 
   ```sh
   docker run \
     -d  \                                 # deamonize
-    -v `pwd`/repositories:/var/lib/git \  # mount the volume
+    -v `pwd`/repositories:/home/git \  # mount the volume
     -p "8080:80" \                        # expose the port 
     cirocosta/gitserver-http
   ```
+
+GIT_PROJECT_ROOT is /home/git
+
 
 Now, initialize a bare repository:
 
@@ -33,7 +38,7 @@ and then, just clone it somewhere else:
 
 ### Pre-Initialization
 
-Git servers work with bare repositories. This image provides the utility of initializing some pre-configured repositories in advance. Just add them to `/var/lib/initial` and then run the container. For instance, having the tree:
+Git servers work with bare repositories. This image provides the utility of initializing some pre-configured repositories in advance. Just add them to `/home/default_project` and then run the container. For instance, having the tree:
 
   ```
   .
@@ -48,10 +53,12 @@ and then executing
   ```sh
   docker run \
     -d  \                                 # deamonize
-    -v `pwd`/initial:/var/lib/initial \   # mount the initial volume
+    -v `pwd`/initial:/home/default_project \   # mount the initial volume
     -p "8080:80" \                        # expose the port 
     cirocosta/gitserver-http              # start git server and init repositories
   ```
+
+GIT_INITIAL_ROOT="/home/default_project"
 
 will allow you to skip the `git init --bare` step and start with the repositories pre-"installed" there:
 
